@@ -1,0 +1,14 @@
+[package]
+name = "i_key_sort"
+version = "0.1.0"
+authors = ["Nail Sharipov <nailxsharipov@gmail.com>"]
+edition = "2021"
+description = "A fast sorting algorithm combining bin and counting sort. Optimized for scenarios where a primary key can be extracted to index elements into buckets."
+license = "MIT"
+repository = "https://github.com/iShape-Rust/iKeySort"
+
+[dependencies]
+serde = { version = "^1.0", features = ["derive"] }
+
+[dev-dependencies]
+rand = { version = "0.8.5", features = [] }
