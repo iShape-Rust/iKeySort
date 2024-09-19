@@ -161,12 +161,10 @@ mod tests {
         }
     }
 
-    const SHIFT: i64 = i32::MIN.unsigned_abs() as i64;
-
     impl BinKey for Point {
         #[inline(always)]
-        fn key(&self) -> usize {
-            (SHIFT + self.x as i64) as usize
+        fn key(&self) -> i64 {
+            self.x as i64
         }
 
         #[inline(always)]
