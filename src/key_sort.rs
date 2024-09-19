@@ -1,31 +1,10 @@
 use std::cmp::Ordering;
-use std::mem;
 use crate::index::{BinKey, BinLayout};
 
 #[derive(Debug, Clone)]
 pub struct Bin {
     pub offset: usize,
-    pub count: usize,
-    pub index: usize,
-}
-
-impl Bin {
-    #[inline(always)]
-    pub fn index(&self) -> usize {
-        self.offset + self.index
-    }
-
-    #[inline(always)]
-    pub fn end(&self) -> usize {
-        self.offset + self.count
-    }
-
-    #[inline(always)]
-    fn index_and_inc(&mut self) -> usize {
-        let index = self.offset + self.index;
-        self.index += 1;
-        index
-    }
+    pub data: usize,
 }
 
 pub trait KeyBinSort {
@@ -39,18 +18,18 @@ pub trait KeyBinSort {
         F: Fn(&Self::Item, &Self::Item) -> Ordering;
 }
 
-impl<T: BinKey + Clone> KeyBinSort for Vec<T> {
+impl<T: BinKey + Clone> KeyBinSort for [T] {
     type Item = T;
 
     fn sort_by_bins(&mut self) -> Vec<Bin> {
-        if self.is_empty() {
+        let mut min_key = if let Some(item) = self.first() {
+            item.key()
+        } else {
             return vec![];
-        }
+        };
 
-        let mut min_key = self[0].key();
         let mut max_key = min_key;
 
-        // Find the minimum and maximum x-coordinates
         for p in self.iter() {
             let key = p.key();
             min_key = key.min(min_key);
@@ -60,11 +39,7 @@ impl<T: BinKey + Clone> KeyBinSort for Vec<T> {
         let delta = (max_key - min_key) as usize;
         let max_possible_bin_count = delta.min(self.len() >> 1).min(8192);
         if max_possible_bin_count <= 1 {
-            return vec![Bin {
-                offset: 0,
-                count: self.len(),
-                index: 0,
-            }];
+            return vec![Bin { offset: 0, data: self.len() }];
         }
 
         let scale = delta / max_possible_bin_count;
@@ -73,61 +48,28 @@ impl<T: BinKey + Clone> KeyBinSort for Vec<T> {
 
         let bin_count = layout.index(max_key) + 1;
 
-        let mut bins = vec![Bin { offset: 0, count: 0, index: 0 }; bin_count];
+        let mut bins = vec![Bin { offset: 0, data: 0 }; bin_count];
 
         for p in self.iter() {
             let index = p.bin(&layout);
-            bins[index].count += 1;
+            unsafe { bins.get_unchecked_mut(index) }.data += 1;
         }
 
         let mut offset = 0;
-        for (bin_index, bin) in bins.iter_mut().enumerate() {
-            if bin.count == 0 {
-                continue;
-            }
+        for bin in bins.iter_mut() {
+            let next_offset = offset + bin.data;
             bin.offset = offset;
-            offset += bin.count;
-
-            let mut j = bin.offset;
-            for i in bin.offset..offset {
-                let target_bin_index = unsafe { self.get_unchecked(i) }.bin(&layout);
-                if target_bin_index == bin_index {
-                    self.swap(i, j);
-                    j += 1;
-                }
-            }
+            bin.data = offset;
+            offset = next_offset;
         }
 
-        let mut bin_index = 0;
-        while bin_index < bins.len() - 1 {
-            let bin = unsafe { bins.get_unchecked(bin_index) };
-            if bin.index >= bin.count {
-                bin_index += 1;
-                continue;
-            }
+        let copy = self.to_vec();
 
-            let end = bin.end();
-
-            let mut iter_index = bin.index();
-
-            while iter_index < end {
-                let mut this_value = unsafe { self.get_unchecked(iter_index) }.clone();
-                let mut next_bin_index = this_value.bin(&layout);
-
-                while next_bin_index != bin_index {
-                    let next_value_index = unsafe { bins.get_unchecked_mut(next_bin_index) }.index_and_inc();
-                    let value = unsafe { self.get_unchecked_mut(next_value_index) };
-
-                    mem::swap(&mut this_value, value);
-
-                    next_bin_index = this_value.bin(&layout);
-                }
-
-                unsafe { *self.get_unchecked_mut(iter_index) = this_value };
-                iter_index = unsafe { bins.get_unchecked_mut(bin_index) }.index_and_inc();
-            }
-
-            bin_index += 1;
+        for p in copy.into_iter() {
+            let index = p.bin(&layout);
+            let bin = unsafe { bins.get_unchecked_mut(index) };
+            *unsafe { self.get_unchecked_mut(bin.data) } = p;
+            bin.data += 1;
         }
 
         bins
@@ -137,12 +79,16 @@ impl<T: BinKey + Clone> KeyBinSort for Vec<T> {
     where
         F: Fn(&T, &T) -> Ordering,
     {
+        if self.len() <= 16 {
+            self.sort_by(|a, b| compare(a, b));
+            return;
+        }
         let bins = self.sort_by_bins();
 
         for bin in bins.iter() {
-            if bin.count > 1 {
-                let start = bin.offset;
-                let end = bin.offset + bin.count;
+            let start = bin.offset;
+            let end = bin.data;
+            if start < end {
                 self[start..end].sort_by(|a, b| compare(a, b));
             }
         }
@@ -152,12 +98,17 @@ impl<T: BinKey + Clone> KeyBinSort for Vec<T> {
     where
         F: Fn(&T, &T) -> Ordering,
     {
+        if self.len() <= 16 {
+            self.sort_unstable_by(|a, b| compare(a, b));
+            return;
+        }
+
         let bins = self.sort_by_bins();
 
         for bin in bins.iter() {
-            if bin.count > 1 {
-                let start = bin.offset;
-                let end = bin.offset + bin.count;
+            let start = bin.offset;
+            let end = bin.data;
+            if start < end {
                 self[start..end].sort_unstable_by(|a, b| compare(a, b));
             }
         }
@@ -210,15 +161,17 @@ mod tests {
         }
     }
 
+    const SHIFT: i64 = i32::MIN.unsigned_abs() as i64;
+
     impl BinKey for Point {
         #[inline(always)]
-        fn key(&self) -> i32 {
-            self.x
+        fn key(&self) -> usize {
+            (SHIFT + self.x as i64) as usize
         }
 
         #[inline(always)]
         fn bin(&self, layout: &BinLayout) -> usize {
-            layout.index(self.x)
+            layout.index(self.key())
         }
     }
 
@@ -244,9 +197,9 @@ mod tests {
 
         // Sort each bin using the provided comparison function
         for bin in bins.iter() {
-            if bin.count > 1 {
-                let start = bin.offset;
-                let end = bin.offset + bin.count;
+            let start = bin.offset;
+            let end = bin.data;
+            if start < end {
                 result[start..end].sort_unstable_by(|a, b| a.cmp(b));
             }
         }
@@ -270,7 +223,6 @@ mod tests {
             assert_eq!(arr_0, arr_1);
         }
     }
-
 
     fn random_points(n: usize, x_range: Range<i32>, y_range: Range<i32>) -> Vec<Point> {
         let mut points = Vec::with_capacity(n);

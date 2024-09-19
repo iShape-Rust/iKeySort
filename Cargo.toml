@@ -7,8 +7,10 @@ description = "A fast sorting algorithm combining bin and counting sort. Optimiz
 license = "MIT"
 repository = "https://github.com/iShape-Rust/iKeySort"
 
-[dependencies]
-serde = { version = "^1.0", features = ["derive"] }
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
 
 [dev-dependencies]
 rand = { version = "0.8.5", features = [] }

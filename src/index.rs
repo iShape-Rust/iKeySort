@@ -1,16 +1,16 @@
 pub struct BinLayout {
-    pub(super) min_key: i32,
+    pub(super) min_key: usize,
     pub(super) power: usize
 }
 
 impl BinLayout {
     #[inline(always)]
-    pub fn index(&self, value: i32) -> usize {
-        (value - self.min_key) as usize >> self.power
+    pub fn index(&self, value: usize) -> usize {
+        value - self.min_key >> self.power
     }
 }
 
 pub trait BinKey {
-    fn key(&self) -> i32;
+    fn key(&self) -> usize;
     fn bin(&self, layout: &BinLayout) -> usize;
 }
