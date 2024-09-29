@@ -1,6 +1,6 @@
 [package]
 name = "i_key_sort"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Nail Sharipov <nailxsharipov@gmail.com>"]
 edition = "2021"
 description = "A fast sorting algorithm combining bin and counting sort. Optimized for scenarios where a primary key can be extracted to index elements into buckets."
