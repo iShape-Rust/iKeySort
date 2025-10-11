@@ -1,12 +1,12 @@
 use crate::sort::key::{KeyFn, SortKey};
 use crate::sort::min_max::MinMax;
 
-// pub(crate) const BIN_SORT_MIN: usize = 64;
-// pub(crate) const MAX_BINS_POWER: u32 = 8;
-// pub(crate) const MAX_BINS_COUNT: usize = 1 << MAX_BINS_POWER;
-pub(crate) const BIN_SORT_MIN: usize = 4;
-pub(crate) const MAX_BINS_POWER: u32 = 4;
+pub(crate) const BIN_SORT_MIN: usize = 64;
+pub(crate) const MAX_BINS_POWER: u32 = 8;
 pub(crate) const MAX_BINS_COUNT: usize = 1 << MAX_BINS_POWER;
+// pub(crate) const BIN_SORT_MIN: usize = 4;
+// pub(crate) const MAX_BINS_POWER: u32 = 2;
+// pub(crate) const MAX_BINS_COUNT: usize = 1 << MAX_BINS_POWER;
 
 
 #[derive(Debug, Clone)]

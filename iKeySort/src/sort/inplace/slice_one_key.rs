@@ -1,7 +1,7 @@
 use crate::sort::bin_layout::BinLayout;
 use crate::sort::key::{KeyFn, SortKey};
 
-pub(crate) trait OneKeyInPlaceSortSerial<T> {
+pub trait OneKeyInPlaceSortSerial<T> {
     fn ser_sort_inplace_by_one_key<K: SortKey, F: KeyFn<T, K>>(
         &mut self,
         key: F,

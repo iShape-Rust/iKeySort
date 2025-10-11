@@ -1,0 +1,9 @@
+[package]
+name = "in_place"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rand = "0.10.0-rc.0"
+rayon = "1.11.0"
+i_key_sort = { path = "../../iKeySort", default-features = false }

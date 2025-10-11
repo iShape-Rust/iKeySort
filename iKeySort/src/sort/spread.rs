@@ -71,51 +71,83 @@ impl<K: SortKey> BinLayout<K> {
     #[inline(always)]
     pub(crate) fn spread_inplace<T: Copy, F: KeyFn<T, K>>(&self, src: &mut [T], key: F) -> Mapper {
         let mut mapper = Mapper::new(self.count());
+
+        // 1) Count desired occupancy per bin
         for a in src.iter() {
             mapper.inc_bin_count(self.index(key(a)));
         }
-
         mapper.init_indices();
-        debug_assert!(mapper.count >= 2);
 
-        // last chunk must always be sorted
-        for start_chunk_index in 0..mapper.count - 1 {
-            let mut chunk = unsafe { mapper.chunks.get_unchecked_mut(start_chunk_index) };
-            while chunk.has_next() {
-                let start_index = chunk.next_index();
+        // With <=1 bin there is nothing to do.
+        debug_assert!(mapper.count >= 1);
+        if mapper.count <= 1 {
+            return mapper;
+        }
 
-                let start_val = unsafe { src.get_unchecked(start_index) };
-                let mut val_chunk_index = self.index(key(start_val));
-                if val_chunk_index == start_chunk_index {
+        // 2) Cycle-leader placement for all bins except the last (acts as sink)
+        for home_bin in 0..mapper.count - 1 {
+            // Advance within the home bin until all its target slots are filled.
+            let mut home = unsafe { mapper.chunks.get_unchecked_mut(home_bin) };
+
+            while home.has_next() {
+                let write_pos = home.next_index();
+
+                // Fast path: element already belongs to its home bin -> nothing to move.
+                let k = key(unsafe { src.get_unchecked(write_pos) });
+                let owner_bin = self.index(k);
+                if owner_bin == home_bin {
                     continue;
                 }
 
-                let mut val = *start_val;
-                let mut target_chunk_index = val_chunk_index;
+                // Start a cycle with the displaced value `val`.
+                let mut val = unsafe { *src.get_unchecked(write_pos) };
+                let mut scan_bin = owner_bin;
 
-                while start_chunk_index != target_chunk_index {
-                    chunk = unsafe { mapper.chunks.get_unchecked_mut(target_chunk_index) };
+                // Move `val` forward until it reaches its home bin.
+                while scan_bin != home_bin {
+                    // We will write into the next open slot of `scan_bin`.
+                    let victim_bin = unsafe { mapper.chunks.get_unchecked_mut(scan_bin) };
 
-                    let mut target_index = chunk.next_index();
-                    let mut target_val = unsafe { src.get_unchecked_mut(target_index) };
-                    target_chunk_index = self.index(key(target_val));
+                    // Find a victim in `scan_bin` that does NOT belong to `scan_bin`.
+                    // (By invariant, such a victim must exist before `scan_bin` is fully settled.)
+                    debug_assert!(victim_bin.has_next(), "no free slot left in scan_bin");
+                    let mut victim_pos = victim_bin.next_index();
 
-                    while target_chunk_index == val_chunk_index {
-                        target_index = chunk.next_index();
-                        target_val = unsafe { src.get_unchecked_mut(target_index) };
-                        target_chunk_index = self.index(key(target_val));
+                    // Skip correctly-placed elements in this bin.
+                    loop {
+                        let victim_key = key(unsafe { src.get_unchecked(victim_pos) });
+                        let victim_owner = self.index(victim_key);
+                        if victim_owner != scan_bin {
+                            // We found a misplaced element; swap it out and continue the cycle.
+                            let victim_ref = unsafe { src.get_unchecked_mut(victim_pos) };
+                            swap(victim_ref, &mut val);
+                            // The swapped-in `val` now *belongs* to `scan_bin`, so we proceed
+                            // with the victim we just evicted.
+                            scan_bin = victim_owner;
+                            break;
+                        }
+
+                        debug_assert!(
+                            victim_bin.has_next(),
+                            "exhausted scan_bin while seeking victim"
+                        );
+                        victim_pos = victim_bin.next_index();
                     }
-
-                    swap(target_val, &mut val);
-                    val_chunk_index = target_chunk_index;
                 }
 
-                unsafe {
-                    *src.get_unchecked_mut(start_index) = val;
-                    chunk = mapper.chunks.get_unchecked_mut(start_chunk_index);
-                };
+                // `val` now belongs to `home_bin`; place it at `write_pos`.
+                unsafe { *src.get_unchecked_mut(write_pos) = val };
+
+                // Refresh `home` reference after potential aliasing through `mapper`.
+                home = unsafe { mapper.chunks.get_unchecked_mut(home_bin) };
             }
         }
+
+        // The last bin’s remaining slots must all be its own elements by construction.
+        debug_assert!({
+            let last = unsafe { mapper.chunks.get_unchecked(mapper.count - 1) };
+            !last.has_next()
+        });
 
         mapper
     }
