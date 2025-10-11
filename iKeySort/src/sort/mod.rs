@@ -11,3 +11,4 @@ pub mod one_key;
 pub mod one_key_cmp;
 pub mod two_keys;
 pub mod two_keys_cmp;
+mod inplace;

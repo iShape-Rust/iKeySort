@@ -4,7 +4,8 @@ use core::slice::Iter;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct Chunk {
-    index: usize,
+    start: usize,
+    end: usize,
     count: usize,
 }
 
@@ -30,18 +31,17 @@ impl Mapper {
 
     #[inline(always)]
     pub(super) fn next_index(&mut self, chunk_index: usize) -> usize {
-        let chunk = unsafe { self.chunks.get_unchecked_mut(chunk_index) };
-        let index = chunk.index;
-        chunk.index += 1;
-        index
+        unsafe { self.chunks.get_unchecked_mut(chunk_index) }.next_index()
     }
 
     #[inline(always)]
     pub(super) fn init_indices(&mut self) {
         let mut offset = 0;
         for chunk in &mut self.chunks[..self.count] {
-            chunk.index = offset;
+            chunk.start = offset;
+            chunk.end = offset + chunk.count;
             offset += chunk.count;
+            chunk.count = 0;
         }
     }
 
@@ -54,8 +54,18 @@ impl Mapper {
 impl Chunk {
     #[inline(always)]
     pub(crate) fn as_range(&self) -> Range<usize> {
-        let end = self.index;
-        let start = self.index - self.count;
-        start..end
+        self.start..self.end
+    }
+
+    #[inline(always)]
+    pub(super) fn has_next(&self) -> bool {
+        self.start + self.count < self.end
+    }
+
+    #[inline(always)]
+    pub(super) fn next_index(&mut self) -> usize {
+        let index = self.start + self.count;
+        self.count += 1;
+        index
     }
 }
