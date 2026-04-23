@@ -1,6 +1,6 @@
 [package]
 name = "i_key_sort"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Nail Sharipov <nailxsharipov@gmail.com>"]
 edition = "2024"
 description = "Counting sort algorithm."
