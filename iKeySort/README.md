@@ -11,7 +11,7 @@ parallel execution.
 Optimized for cases where a primary key can be extracted efficiently to index
 elements into buckets.
 
-<img src="readme/sort_algorithm.gif" width="512"/>
+<img src="https://raw.githubusercontent.com/iShape-Rust/iKeySort/main/readme/sort_algorithm.gif" width="512"/>
 
 ## Examples
 
