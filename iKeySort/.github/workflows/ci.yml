@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  rust-build-and-test:
+    name: Build and test (${{ matrix.feature_mode.name }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        feature_mode:
+          - name: default
+            features: ""
+          - name: allow_multithreading
+            features: "--features allow_multithreading"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry + build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --locked ${{ matrix.feature_mode.features }}
+
+      - name: Test
+        run: cargo test --locked ${{ matrix.feature_mode.features }}
