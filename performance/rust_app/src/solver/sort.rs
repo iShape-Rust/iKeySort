@@ -12,7 +12,7 @@ impl SortSolution {
 
         let n = Self::repeat_count(segments.len());
         for _ in 0..n {
-            data.copy_from_slice(&segments);
+            data.copy_from_slice(segments);
             data.sort_unstable_by(|s0, s1| s0.cmp_by_start(s1));
         }
         let duration = start.elapsed().as_secs_f64() / (n as f64);
@@ -28,7 +28,7 @@ impl SortSolution {
 
         let n = Self::repeat_count(segments.len());
         for _ in 0..n {
-            data.copy_from_slice(&segments);
+            data.copy_from_slice(segments);
             data.sort_by(|s0, s1| s0.cmp_by_start(s1));
         }
         let duration = start.elapsed().as_secs_f64() / (n as f64);
@@ -44,7 +44,7 @@ impl SortSolution {
 
         let n = Self::repeat_count(segments.len());
         for _ in 0..n {
-            data.copy_from_slice(&segments);
+            data.copy_from_slice(segments);
             data.par_sort_unstable_by(|s0, s1| s0.cmp_by_start(s1));
         }
         let duration = start.elapsed().as_secs_f64() / (n as f64);

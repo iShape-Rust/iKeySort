@@ -1,9 +1,9 @@
+use rand::RngExt;
 use crate::geom::id_segment::IdSegment;
 use crate::geom::index_segm::IndexSegment;
 use crate::geom::point::Point;
 use crate::geom::segm::Segment;
 use crate::solver::sort::SortSolution;
-use rand::Rng;
 
 pub struct RandomTest {
     segments: Vec<Segment>,

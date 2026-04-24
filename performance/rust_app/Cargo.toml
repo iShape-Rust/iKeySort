@@ -7,5 +7,5 @@ edition = "2024"
 rayon = "^1.11"
 
 i_key_sort = { path = "../../iKeySort", features = ["allow_multithreading"] }
-rand = "0.9.2"
+rand = "0.10.1"
 #i_key_sort = { path = "../../iKeySort", default-features = false }
