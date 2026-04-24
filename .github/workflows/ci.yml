@@ -31,7 +31,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build
-        run: cargo build --locked ${{ matrix.feature_mode.features }}
+        run: cargo build --locked --manifest-path iKeySort/Cargo.toml ${{ matrix.feature_mode.features }}
 
       - name: Test
-        run: cargo test --locked ${{ matrix.feature_mode.features }}
+        run: cargo test --locked --manifest-path iKeySort/Cargo.toml ${{ matrix.feature_mode.features }}
