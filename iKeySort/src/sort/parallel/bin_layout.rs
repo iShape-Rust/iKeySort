@@ -1,4 +1,4 @@
-use crate::sort::bin_layout::{BinLayout, MAX_BINS_COUNT};
+use crate::sort::bin_layout::{BinLayout, LayoutConstraints, MAX_BINS_COUNT};
 use crate::sort::key::{KeyFn, SortKey};
 use crate::sort::parallel::pre_sort::{PreSortFragment, IdRange, FragmentationByCount};
 use rayon::iter::ParallelIterator;
@@ -22,7 +22,7 @@ impl<K: SortKey + Send + Sync> BinLayout<K> {
 
         let max_bins_count = cpu.saturating_mul(4).min(MAX_BINS_COUNT);
 
-        Some(BinLayout::new(min_key, max_key, max_bins_count))
+        Some(BinLayout::with_constraints(min_key, max_key, LayoutConstraints { max_split_count: max_bins_count }))
     }
 }
 

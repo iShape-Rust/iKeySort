@@ -14,8 +14,8 @@ pub(crate) struct BinLayout<K> {
 }
 
 #[derive(Clone, Copy)]
-struct LayoutConstraints {
-    max_split_count: usize,
+pub(crate) struct LayoutConstraints {
+    pub(crate) max_split_count: usize,
 }
 
 impl Default for LayoutConstraints {
@@ -45,7 +45,7 @@ impl<K: SortKey> BinLayout<K> {
         self.index(self.max_key) + 1
     }
 
-    fn with_constraints(min_key: K, max_key: K, constraints: LayoutConstraints) -> BinLayout<K> {
+    pub(crate) fn with_constraints(min_key: K, max_key: K, constraints: LayoutConstraints) -> BinLayout<K> {
         let length = max_key.difference(min_key);
         if length < constraints.max_split_count {
             return Self {
