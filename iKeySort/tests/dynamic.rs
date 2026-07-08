@@ -110,7 +110,7 @@ mod tests {
             })
             .collect();
 
-        segments.sort_unstable_by(|x0, x1| x0.cmp(&x1));
+        segments.sort_unstable();
 
         for arr in res {
             assert_eq!(arr, segments);
@@ -234,7 +234,7 @@ mod tests {
             a += da;
         }
 
-        let mut p0 = points.last().unwrap().clone();
+        let mut p0 = *points.last().unwrap();
         for &pi in points.iter() {
             result.push(Segment::new(p0, pi));
             p0 = pi;
