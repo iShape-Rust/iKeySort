@@ -22,7 +22,7 @@ impl SortKey for i8 {
     #[inline(always)]
     fn difference(self, other: Self) -> usize {
         debug_assert!(self >= other, "difference() requires self >= other");
-        (self - other) as usize
+        self.abs_diff(other) as usize
     }
 }
 
@@ -38,7 +38,7 @@ impl SortKey for i16 {
     #[inline(always)]
     fn difference(self, other: Self) -> usize {
         debug_assert!(self >= other, "difference() requires self >= other");
-        (self - other) as usize
+        self.abs_diff(other) as usize
     }
 }
 
@@ -54,7 +54,7 @@ impl SortKey for i32 {
     #[inline(always)]
     fn difference(self, other: Self) -> usize {
         debug_assert!(self >= other, "difference() requires self >= other");
-        (self - other) as usize
+        self.abs_diff(other) as usize
     }
 }
 
@@ -70,7 +70,7 @@ impl SortKey for i64 {
     #[inline(always)]
     fn difference(self, other: Self) -> usize {
         debug_assert!(self >= other, "difference() requires self >= other");
-        (self - other) as usize
+        self.abs_diff(other) as usize
     }
 }
 
