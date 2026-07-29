@@ -36,8 +36,7 @@ impl<K: SortKey> BinLayout<K> {
     #[inline(always)]
     pub fn index(&self, value: K) -> usize {
         debug_assert!(value >= self.min_key, "value must be >= min_key");
-        let offset = value.difference(self.min_key);
-        offset >> self.power
+        value.shifted_distance(self.min_key, self.power)
     }
 
     #[inline(always)]
@@ -45,25 +44,26 @@ impl<K: SortKey> BinLayout<K> {
         self.index(self.max_key) + 1
     }
 
-    pub(crate) fn with_constraints(min_key: K, max_key: K, constraints: LayoutConstraints) -> BinLayout<K> {
-        let length = max_key.difference(min_key);
-        if length < constraints.max_split_count {
-            return Self {
-                min_key,
-                max_key,
-                power: 0,
-                bin_width_is_one: true,
-            };
+    pub(crate) fn with_constraints(
+        min_key: K,
+        max_key: K,
+        constraints: LayoutConstraints,
+    ) -> BinLayout<K> {
+        // `max_split_count` is a sizing hint. Cap it at half of `usize::MAX`
+        let max_split_count = constraints.max_split_count.clamp(1, usize::MAX / 2);
+        let mut power = 0;
+        if max_key.shifted_distance(min_key, power) >= max_split_count {
+            let split_count = 1usize << max_split_count.ilog2();
+            while max_key.shifted_distance(min_key, power) >= split_count {
+                power += 1;
+            }
         }
-
-        let scale = length.saturating_add(1).ilog2_ceil();
-        let power = scale.saturating_sub(constraints.max_split_count.ilog2()) as usize;
 
         Self {
             min_key,
             max_key,
             power,
-            bin_width_is_one: false,
+            bin_width_is_one: power == 0,
         }
     }
 
@@ -83,25 +83,9 @@ impl<K: SortKey> BinLayout<K> {
     }
 }
 
-trait Log2 {
-    fn ilog2_ceil(&self) -> u32;
-}
-
-impl Log2 for usize {
-    #[inline(always)]
-    fn ilog2_ceil(&self) -> u32 {
-        let floor = self.ilog2();
-        if self.is_power_of_two() {
-            floor
-        } else {
-            floor + 1
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::sort::bin_layout::{BinLayout, Log2};
+    use crate::sort::bin_layout::{BinLayout, LayoutConstraints, MAX_BINS_COUNT};
 
     #[test]
     fn test_0() {
@@ -124,11 +108,52 @@ mod tests {
     }
 
     #[test]
-    fn test_log2_0() {
-        assert_eq!(1usize.ilog2_ceil(), 0);
-        assert_eq!(2usize.ilog2_ceil(), 1);
-        assert_eq!(3usize.ilog2_ceil(), 2);
-        assert_eq!(4usize.ilog2_ceil(), 2);
-        assert_eq!(5usize.ilog2_ceil(), 3);
+    fn test_i64_full_range() {
+        let layout = BinLayout::<i64>::with_constraints(i64::MIN, i64::MAX, Default::default());
+
+        assert_eq!(layout.power, 56);
+        assert_eq!(layout.index(i64::MIN), 0);
+        assert_eq!(layout.index(i64::MAX), MAX_BINS_COUNT - 1);
+        assert_eq!(layout.count(), MAX_BINS_COUNT);
+    }
+
+    #[test]
+    fn test_max_split_count_is_limited_to_usize() {
+        let layout = BinLayout::<usize>::with_constraints(
+            usize::MIN,
+            usize::MAX,
+            LayoutConstraints {
+                max_split_count: usize::MAX,
+            },
+        );
+
+        assert_eq!(layout.power, 2);
+        assert_eq!(layout.count(), (usize::MAX >> 2) + 1);
+    }
+
+    #[test]
+    fn test_non_power_of_two_max_split_count() {
+        let constraints = LayoutConstraints {
+            max_split_count: 160,
+        };
+
+        let layout = BinLayout::<i64>::with_constraints(0, 159, constraints);
+        assert_eq!(layout.power, 0);
+        assert_eq!(layout.count(), 160);
+
+        let layout = BinLayout::<i64>::with_constraints(0, 40_000, constraints);
+        assert_eq!(layout.power, 9);
+        assert_eq!(layout.count(), 79);
+    }
+
+    #[test]
+    fn test_zero_max_split_count() {
+        let layout = BinLayout::<i64>::with_constraints(
+            i64::MIN,
+            i64::MAX,
+            LayoutConstraints { max_split_count: 0 },
+        );
+
+        assert_eq!(layout.count(), 1);
     }
 }
