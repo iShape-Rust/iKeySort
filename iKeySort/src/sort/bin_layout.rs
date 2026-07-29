@@ -51,13 +51,14 @@ impl<K: SortKey> BinLayout<K> {
     ) -> BinLayout<K> {
         // `max_split_count` is a sizing hint. Cap it at half of `usize::MAX`
         let max_split_count = constraints.max_split_count.clamp(1, usize::MAX / 2);
-        let mut power = 0;
-        if max_key.shifted_distance(min_key, power) >= max_split_count {
-            let split_count = 1usize << max_split_count.ilog2();
-            while max_key.shifted_distance(min_key, power) >= split_count {
-                power += 1;
-            }
-        }
+        let distance = max_key.shifted_distance(min_key, 0);
+        let power = if distance < max_split_count {
+            0
+        } else {
+            max_key
+                .distance_bits(min_key)
+                .saturating_sub(max_split_count.ilog2() as usize)
+        };
 
         Self {
             min_key,

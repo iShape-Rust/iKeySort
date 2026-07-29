@@ -7,6 +7,9 @@ pub trait CmpFn<T>: Fn(&T, &T) -> Ordering + Copy {}
 impl<T, F: Fn(&T, &T) -> Ordering + Copy> CmpFn<T> for F {}
 
 pub trait SortKey: Copy + Ord {
+    /// Returns the number of bits required to represent `self - other`.
+    fn distance_bits(self, other: Self) -> usize;
+
     /// Returns `(self - other) >> shift`, saturated to the `usize` range.
     ///
     /// The distance must be shifted before it is converted to `usize`.
@@ -17,6 +20,13 @@ macro_rules! impl_unsigned_sort_key {
     ($($ty:ty),+ $(,)?) => {
         $(
             impl SortKey for $ty {
+                #[inline(always)]
+                fn distance_bits(self, other: Self) -> usize {
+                    debug_assert!(self >= other, "distance_bits() requires self >= other");
+                    let distance = self - other;
+                    (<$ty>::BITS - distance.leading_zeros()) as usize
+                }
+
                 #[inline(always)]
                 fn shifted_distance(self, other: Self, shift: usize) -> usize {
                     debug_assert!(self >= other, "shifted_distance() requires self >= other");
@@ -36,6 +46,13 @@ macro_rules! impl_signed_sort_key {
     ($($ty:ty),+ $(,)?) => {
         $(
             impl SortKey for $ty {
+                #[inline(always)]
+                fn distance_bits(self, other: Self) -> usize {
+                    debug_assert!(self >= other, "distance_bits() requires self >= other");
+                    let distance = self.abs_diff(other);
+                    (<$ty>::BITS - distance.leading_zeros()) as usize
+                }
+
                 #[inline(always)]
                 fn shifted_distance(self, other: Self, shift: usize) -> usize {
                     debug_assert!(self >= other, "shifted_distance() requires self >= other");
