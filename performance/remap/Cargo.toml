@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-i_key_sort = "0.9.1"
+i_key_sort = { path = "../../iKeySort" }

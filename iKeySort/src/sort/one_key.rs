@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_5() {
-        test(1000_000);
+        test(1_000_000);
     }
 
     #[test]
