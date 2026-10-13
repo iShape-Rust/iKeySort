@@ -213,8 +213,8 @@ pub(crate) fn sort_unstable_by_two_keys_then_by<T, K1, K2, F1, F2, F3>(
     slice.sort_unstable_by(|a, b| {
         key1(a)
             .cmp(&key1(b))
-            .then(key2(a).cmp(&key2(b)))
-            .then(compare(a, b))
+            .then_with(|| key2(a).cmp(&key2(b)))
+            .then_with(|| compare(a, b))
     });
 }
 

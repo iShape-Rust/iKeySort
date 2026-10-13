@@ -1,8 +1,8 @@
-use alloc::vec::Vec;
-use core::mem::MaybeUninit;
 use crate::sort::bin_layout::BinLayout;
 use crate::sort::key::{KeyFn, SortKey};
 use crate::sort::mapper::Mapper;
+use alloc::vec::Vec;
+use core::mem::MaybeUninit;
 
 impl<K: SortKey> BinLayout<K> {
     #[inline(always)]
@@ -30,11 +30,15 @@ impl<K: SortKey> BinLayout<K> {
 
         for val in src.iter() {
             let index = mapper.next_index(self.index(key(val)));
-            unsafe { scratch.get_unchecked_mut(index).write(*val); }
+            unsafe {
+                scratch.get_unchecked_mut(index).write(*val);
+            }
         }
 
         #[allow(clippy::uninit_vec)]
-        unsafe { buf.set_len(need); }
+        unsafe {
+            buf.set_len(need);
+        }
 
         mapper
     }

@@ -34,12 +34,8 @@ pub trait OneKeySort<T> {
         K: SortKey,
         F: KeyFn<T, K>;
 
-    fn sort_by_one_key_and_buffer<K, F>(
-        &mut self,
-        parallel: bool,
-        buffer: &mut Vec<T>,
-        key: F,
-    ) where
+    fn sort_by_one_key_and_buffer<K, F>(&mut self, parallel: bool, buffer: &mut Vec<T>, key: F)
+    where
         K: SortKey,
         F: KeyFn<T, K>;
 }
@@ -117,12 +113,8 @@ where
     }
 
     #[inline]
-    fn sort_by_one_key_and_buffer<K, F>(
-        &mut self,
-        parallel: bool,
-        buffer: &mut Vec<T>,
-        key: F,
-    ) where
+    fn sort_by_one_key_and_buffer<K, F>(&mut self, parallel: bool, buffer: &mut Vec<T>, key: F)
+    where
         K: SortKey + Send + Sync,
         F: KeyFn<T, K> + Send + Sync,
     {
@@ -140,11 +132,10 @@ where
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use alloc::vec::Vec;
     use crate::sort::one_key::OneKeySort;
+    use alloc::vec::Vec;
 
     #[test]
     fn test_0() {

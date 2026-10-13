@@ -155,7 +155,7 @@ where
     F1: KeyFn<T, K>,
     F2: CmpFn<T>,
 {
-    slice.sort_unstable_by(|a, b| key(a).cmp(&key(b)).then(compare(a, b)));
+    slice.sort_unstable_by(|a, b| key(a).cmp(&key(b)).then_with(|| compare(a, b)));
 }
 
 #[cfg(test)]

@@ -161,13 +161,13 @@ where
     F1: KeyFn<T, K1>,
     F2: KeyFn<T, K2>,
 {
-    slice.sort_unstable_by(|a, b| key1(a).cmp(&key1(b)).then(key2(a).cmp(&key2(b))))
+    slice.sort_unstable_by(|a, b| key1(a).cmp(&key1(b)).then_with(|| key2(a).cmp(&key2(b))))
 }
 
 #[cfg(test)]
 mod tests {
-    use alloc::vec::Vec;
     use crate::sort::two_keys::TwoKeysSort;
+    use alloc::vec::Vec;
 
     #[test]
     fn test_0() {

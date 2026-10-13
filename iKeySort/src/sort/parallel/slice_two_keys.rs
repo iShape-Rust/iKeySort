@@ -2,9 +2,9 @@ use crate::sort::bin_layout::BinLayout;
 use crate::sort::key::{KeyFn, SortKey};
 use crate::sort::parallel::cpu_count::CPUCount;
 use crate::sort::parallel::slice_one_key::OneKeyBinSortParallel;
+use crate::sort::parallel::sub_sort::{FragmentationByMarks, SubSortFragment};
 use crate::sort::serial::slice_two_keys::TwoKeysBinSortSerial;
 use rayon::prelude::*;
-use crate::sort::parallel::sub_sort::{FragmentationByMarks, SubSortFragment};
 
 pub(crate) trait TwoKeysBinSortParallel<T> {
     fn par_sort_by_two_keys<K1, K2, F1, F2>(
