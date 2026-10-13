@@ -20,8 +20,6 @@
 //! - `std` — opt in to the Rust standard library (still `no_std` by default).
 //! - `allow_multithreading` — enables parallel pre-spread via Rayon and exposes `parallel: bool` paths.
 //!   - When this feature is **off**, the `parallel` argument is accepted but **ignored**.
-//!   - Parallel sorts cache an index table per calling thread, retaining its largest
-//!     capacity until thread exit. Element data is never retained in this cache.
 //!
 //! ## Complexity (high level)
 //! - Pre-spread: `O(n)` with one pass over the input.
