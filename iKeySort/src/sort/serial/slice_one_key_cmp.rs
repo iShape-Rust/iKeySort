@@ -4,7 +4,6 @@ use crate::sort::key::{CmpFn, KeyFn, SortKey};
 use alloc::vec::Vec;
 
 pub(crate) trait OneKeyBinSortCmpSerial<T> {
-
     fn ser_sort_by_one_key_then_by_and_buffer<K, F1, F2>(
         &mut self,
         buf: &mut [T],
@@ -110,7 +109,11 @@ mod tests {
     fn test(count: usize) {
         let mut org: Vec<_> = reversed_2d_array(count);
         let mut arr = org.clone();
-        arr.ser_sort_by_one_key_then_by_and_uninit_buffer(&mut Vec::new(), |a| a.0, |a, b| a.1.cmp(&b.1));
+        arr.ser_sort_by_one_key_then_by_and_uninit_buffer(
+            &mut Vec::new(),
+            |a| a.0,
+            |a, b| a.1.cmp(&b.1),
+        );
         org.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
         assert!(arr == org);
     }

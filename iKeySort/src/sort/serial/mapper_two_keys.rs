@@ -1,8 +1,8 @@
+use crate::sort::bin_layout::BIN_SORT_MIN;
 use crate::sort::buffer::{CopyFromNotOverlap, CopyNotOverlapValue, DoubleRangeSlices};
 use crate::sort::key::{KeyFn, SortKey};
 use crate::sort::mapper::Mapper;
 use crate::sort::serial::slice_two_keys::TwoKeysBinSortSerial;
-use crate::sort::bin_layout::BIN_SORT_MIN;
 use crate::sort::two_keys::sort_unstable_by_two_keys;
 
 impl Mapper {
@@ -39,7 +39,7 @@ impl Mapper {
                     // SAFETY: mapper ranges never overlap; (src, buf) are distinct buffers.
                     let sub_buf = unsafe { buf.get_unchecked_mut(range.clone()) };
                     sort_unstable_by_two_keys(sub_buf, key1, key2);
-                
+
                     if copy_to_src {
                         src.copy_to_range_from_not_overlap(sub_buf, range);
                     }

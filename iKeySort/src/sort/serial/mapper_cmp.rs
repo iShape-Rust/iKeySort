@@ -11,7 +11,6 @@ impl Mapper {
         compare: F,
         copy_to_src: bool,
     ) {
-
         // if `copy_to_src` is true
         // must copy `src` to `buf`, since the result array is in the buffer
 

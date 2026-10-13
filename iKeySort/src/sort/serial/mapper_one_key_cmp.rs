@@ -38,7 +38,7 @@ impl Mapper {
                     // SAFETY: mapper ranges never overlap; (src, buf) are distinct buffers.
                     let sub_buf = unsafe { buf.get_unchecked_mut(range.clone()) };
                     sort_unstable_by_one_key_then_by(sub_buf, key, compare);
-                
+
                     if copy_to_src {
                         src.copy_to_range_from_not_overlap(sub_buf, range);
                     }

@@ -1,9 +1,9 @@
 use crate::sort::bin_layout::BinLayout;
 use crate::sort::key::{CmpFn, KeyFn, SortKey};
 use crate::sort::parallel::cpu_count::CPUCount;
+use crate::sort::parallel::sub_sort::{FragmentationByMarks, SubSortFragment};
 use crate::sort::serial::slice_one_key_cmp::OneKeyBinSortCmpSerial;
 use rayon::prelude::*;
-use crate::sort::parallel::sub_sort::{FragmentationByMarks, SubSortFragment};
 
 pub(crate) trait OneKeyBinSortCmpParallel<T> {
     fn par_sort_by_one_key_then_by<K, F1, F2>(
