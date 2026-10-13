@@ -4,7 +4,6 @@ use crate::sort::parallel::cpu_count::CPUCount;
 use crate::sort::parallel::sub_sort::{FragmentationByMarks, SubSortFragment};
 use crate::sort::serial::slice_one_key::OneKeyBinSortSerial;
 use rayon::iter::ParallelIterator;
-use rayon::prelude::IntoParallelRefMutIterator;
 
 pub(crate) trait OneKeyBinSortParallel<T> {
     fn par_sort_by_one_key<K, F>(&mut self, reusable_buffer: &mut Vec<T>, key: F)

@@ -2,111 +2,102 @@ use crate::sort::bin_layout::BinLayout;
 use crate::sort::key::{KeyFn, SortKey};
 use crate::sort::mapper::Mapper;
 use core::ops::Range;
+use std::cell::RefCell;
 use std::mem::MaybeUninit;
 
-pub(super) struct PreSortFragment<'a, T> {
-    pub(super) base: usize,
-    pub(super) src: &'a mut [T],
-    pub(super) buf: &'a mut [MaybeUninit<T>],
+thread_local! {
+    // Only indices are retained; no element data or references survive a sort.
+    static RANGES: RefCell<Vec<Range<usize>>> = const { RefCell::new(Vec::new()) };
 }
 
-pub(super) struct IdRange {
-    pub(super) index: usize,
-    pub(super) range: Range<usize>,
+pub(super) struct ScratchRanges {
+    pub(super) ranges: Vec<Range<usize>>,
 }
 
-impl<T> PreSortFragment<'_, T>
-where
-    T: Send + Copy,
-{
-    #[inline]
-    pub(super) fn spread<K, F>(&mut self, layout: BinLayout<K>, key: F) -> Vec<IdRange>
-    where
-        K: SortKey,
-        F: KeyFn<T, K>,
-    {
-        let mut mapper = Mapper::new(layout.count());
-        for a in self.src.iter() {
-            mapper.inc_bin_count(layout.index(key(a)));
-        }
-
-        mapper.init_indices();
-
-        for val in self.src.iter() {
-            let index = mapper.next_index(layout.index(key(val)));
-            unsafe {
-                let _ = *self.buf.get_unchecked_mut(index).write(*val);
-            }
-        }
-
-        let mut ranges = Vec::with_capacity(mapper.count);
-        for (index, chunk) in mapper.iter().enumerate() {
-            let range = chunk.as_range();
-            if !range.is_empty() {
-                let global_range = range.start + self.base..range.end + self.base;
-                ranges.push(IdRange {
-                    index,
-                    range: global_range,
-                });
-            }
-        }
-
-        ranges
+impl ScratchRanges {
+    pub(super) fn new(len: usize) -> Self {
+        // Take ownership before calling user code or entering Rayon, so nested
+        // sorts can rent their own storage without holding a RefCell borrow.
+        let ranges = RANGES
+            .try_with(|cache| core::mem::take(&mut *cache.borrow_mut()))
+            .unwrap_or_default();
+        let mut scratch = Self { ranges };
+        scratch.ranges.resize(len, 0..0);
+        scratch
     }
 }
 
-pub(super) trait FragmentationByCount<T> {
-    fn fragment_by_count<'a>(
-        &'a mut self,
-        buffer: &'a mut Vec<T>,
-        count: usize,
-    ) -> Vec<PreSortFragment<'a, T>>;
+impl Drop for ScratchRanges {
+    fn drop(&mut self) {
+        // A nested sort may already have returned a buffer. Keep the larger one.
+        // try_with also permits sorting during thread-local destruction.
+        let _ = RANGES.try_with(|cache| {
+            if let Ok(mut cached) = cache.try_borrow_mut() {
+                if self.ranges.capacity() > cached.capacity() {
+                    core::mem::swap(&mut *cached, &mut self.ranges);
+                }
+            }
+        });
+    }
 }
 
-impl<T> FragmentationByCount<T> for [T] {
-    #[inline]
-    fn fragment_by_count<'a>(
-        &'a mut self,
-        buffer: &'a mut Vec<T>,
-        count: usize,
-    ) -> Vec<PreSortFragment<'a, T>> {
-        let (capacity, step_len) = if self.len() < count {
-            (self.len(), 1)
-        } else {
-            let step_len = self.len().div_ceil(count);
-            let count = self.len().div_ceil(step_len);
-            (count, step_len)
-        };
+#[inline]
+pub(super) fn spread_fragment<T, K, F>(
+    src: &[T],
+    buf: &mut [MaybeUninit<T>],
+    ranges: &mut [Range<usize>],
+    base: usize,
+    layout: &BinLayout<K>,
+    key: F,
+) where
+    T: Copy,
+    K: SortKey,
+    F: KeyFn<T, K>,
+{
+    debug_assert_eq!(src.len(), buf.len());
+    debug_assert_eq!(ranges.len(), layout.count());
+    let mut mapper = Mapper::new(layout.count());
+    for a in src {
+        mapper.inc_bin_count(layout.index(key(a)));
+    }
+    mapper.init_indices();
 
-        let mut scratch: &mut [MaybeUninit<T>] = &mut buffer.spare_capacity_mut()[..self.len()];
+    for val in src {
+        let index = mapper.next_index(layout.index(key(val)));
+        // SAFETY: the histogram reserves one destination for every source item.
+        unsafe { buf.get_unchecked_mut(index).write(*val) };
+    }
 
-        let mut frags = Vec::with_capacity(capacity);
-        let mut base = 0;
+    for (dst, chunk) in ranges.iter_mut().zip(mapper.iter()) {
+        let range = chunk.as_range();
+        *dst = range.start + base..range.end + base;
+    }
+}
 
-        let mut src = self;
+#[cfg(test)]
+mod tests {
+    use super::ScratchRanges;
 
-        for _ in 0..capacity.saturating_sub(1) {
-            let (left_src, right_src) = src.split_at_mut(step_len);
-            let (left_buf, right_buf) = scratch.split_at_mut(step_len);
-
-            frags.push(PreSortFragment {
-                base,
-                src: left_src,
-                buf: left_buf,
-            });
-
-            src = right_src;
-            scratch = right_buf;
-
-            base += step_len;
+    #[test]
+    fn scratch_is_available_after_thread_cache_destruction() {
+        struct RentOnDrop;
+        impl Drop for RentOnDrop {
+            fn drop(&mut self) {
+                let mut scratch = ScratchRanges::new(8);
+                scratch.ranges[0] = 2..4;
+                assert_eq!(scratch.ranges[0], 2..4);
+            }
         }
-
-        frags.push(PreSortFragment {
-            base,
-            src,
-            buf: scratch,
-        });
-
-        frags
+        thread_local! {
+            static RENT_ON_DROP: RentOnDrop = const { RentOnDrop };
+        }
+        std::thread::spawn(|| {
+            // TLS is destroyed in reverse initialization order: the index cache
+            // is gone when RentOnDrop requests scratch storage.
+            RENT_ON_DROP.with(|_| {});
+            drop(ScratchRanges::new(8));
+        })
+        .join()
+        .unwrap();
     }
 }
